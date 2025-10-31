@@ -14,6 +14,8 @@ use App\Http\Controllers\UserBestrisingController;
 use App\Http\Controllers\RegionController;
 use App\Http\Controllers\SerpoController;
 use App\Http\Controllers\SegmenController;
+use App\Http\Controllers\PenguranganStarController;
+use App\Http\Controllers\DashboardTeknisiController;
 
 /*
 |--------------------------------------------------------------------------
@@ -30,7 +32,8 @@ Route::post('/logout', [ManualAuthController::class, 'logout'])->name('logout');
 |--------------------------------------------------------------------------
 */
 Route::middleware('manual.auth')->group(function () {
-    
+    Route::get('/dashboard-teknisi', [DashboardTeknisiController::class, 'index'])->name('teknisi.dashboard');
+
 
     // ---------------------------
     // TEKNISI AREA
@@ -82,6 +85,9 @@ Route::middleware('manual.auth')->group(function () {
 
         Route::get('checklists/{checklist}/items', [AdminChecklistController::class, 'items'])->whereNumber('checklist')->name('checklists.items'); // detail item per checklist (JSON)
         Route::post('checklists/approve-bulk', [AdminChecklistController::class, 'approveBulk'])->name('checklists.approveBulk');
+        
+        Route::get('pengurangan-star/serpo-totals', [PenguranganStarController::class, 'serpoTotals'])->name('pengurangan-star.serpo-totals');
+        Route::resource('pengurangan-star', PenguranganStarController::class);
 
         // Master data (kalau ini memang khusus admin)
         Route::resource('aktifitas',         ActivityController::class)->parameters(['aktifitas' => 'activity'])->names('aktifitas');

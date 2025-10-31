@@ -16,5 +16,6 @@ class DatabaseSeeder extends Seeder
         $this->call(KategoriUserAndUserSeeder::class);
         $this->call(RegionSerpoSegmenCsvSeeder::class);
         $this->call(UsersFromCsvSeeder::class);
+        $this->call(TotalStarSerpoSeeder::class);
     }
 }

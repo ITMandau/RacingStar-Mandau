@@ -14,30 +14,23 @@ use Carbon\Carbon;
 
 class AdminHomeController extends Controller
 {
-    /**
-     * Hitung periode kuartal berjalan berbasis anchor (tanggal rilis).
-     */
     private function currentQuarterRangeFromAnchor(Carbon $anchor, ?Carbon $now = null): array
     {
         $now = $now ?: now();
-
-        // Normalisasi ke awal bulan biar bersih
         $anchorStart = $anchor->copy()->startOfMonth();
         $nowStart    = $now->copy()->startOfMonth();
 
-        // Kalau sekarang sebelum rilis, pakai periode pertama (mulai anchorStart)
         if ($nowStart->lt($anchorStart)) {
             $start = $anchorStart->copy();
             $end   = $start->copy()->addMonthsNoOverflow(2)->endOfMonth();
         } else {
-            $diffMonths = $anchorStart->diffInMonths($nowStart); // non-negative
-            $periodIdx  = intdiv($diffMonths, 3);                // periode ke-berapa
+            $diffMonths = $anchorStart->diffInMonths($nowStart);
+            $periodIdx  = intdiv($diffMonths, 3);
             $start      = $anchorStart->copy()->addMonths($periodIdx * 3);
             $end        = $start->copy()->addMonthsNoOverflow(2)->endOfMonth();
         }
 
-        // Label periode (contoh: "Sep–Nov 2025")
-        $fmt = fn (Carbon $d) => $d->translatedFormat('M Y'); // butuh locale id_ID
+        $fmt = fn (Carbon $d) => $d->translatedFormat('M Y');
         $shortMonth = fn (Carbon $d) => $d->translatedFormat('M');
         $label = $start->year === $end->year
             ? sprintf('%s–%s %d', $shortMonth($start), $shortMonth($end), $end->year)
@@ -49,20 +42,15 @@ class AdminHomeController extends Controller
     public function index(Request $request)
     {
         // ===== Determinasi Region Aktif =====
-        // 1) Utamakan region dari akun/session admin (mis. kolom id_region di tabel user)
         $sessionUser   = auth()->user();
         $sessionRegion = $sessionUser->id_region ?? (session('auth_user.id_region') ?? null);
-
-        // 2) Kalau tidak ada region di session/akun, izinkan pilih via filter ?region_id=...
-        $filterRegion    = $sessionRegion ? null : $request->query('region_id');
+        $filterRegion  = $sessionRegion ? null : $request->query('region_id');
         $activeRegionId  = $sessionRegion ?: ($filterRegion ?: null);
 
-        // Ambil list region untuk dropdown HANYA bila tidak ada region di session
         $regionOptions = $sessionRegion ? collect() : Region::query()
             ->orderBy('nama_region')
             ->get(['id_region','nama_region']);
 
-        // Helper scope by region (dipakai berulang)
         $applyRegionToSerpo = function ($q) use ($activeRegionId) {
             if ($activeRegionId) { $q->where('id_region', $activeRegionId); }
             return $q;
@@ -88,7 +76,7 @@ class AdminHomeController extends Controller
             'segmens' => (int) Segmen::query()->tap($applyRegionToSegmen)->count(),
         ];
 
-        // ---- STATUS CHECKLIST (Approved/Pending/Rejected) ----
+        // ---- STATUS CHECKLIST ----
         $statusCounts = Checklist::query()
             ->when($activeRegionId, function($q) use ($activeRegionId){
                 $q->whereHas('serpo', function($qq) use ($activeRegionId){
@@ -154,18 +142,28 @@ class AdminHomeController extends Controller
             ->take(5)
             ->get(['id_segmen','nama_segmen','id_serpo']);
 
-        // ---- Grafik: distribusi user per kategori (scoped) ----
-        $userKategori = UserBestrising::query()
-            ->tap($applyRegionToUser)
-            ->select('kategori_user_id', DB::raw('COUNT(*) as total'))
-            ->groupBy('kategori_user_id')
-            ->with(['kategoriUser:id_kategoriuser,nama_kategoriuser'])
-            ->get()
-            ->map(fn ($r) => [
-                'label' => $r->kategoriUser->nama_kategoriuser ?? 'Tidak diketahui',
-                'value' => (int) $r->total,
-            ])
-            ->values();
+        // ==== Donut: total activity_result per activity ====
+        $activityDonut = DB::table('activity_results as ar')
+            ->leftJoin('activities as a', function($j){
+                $j->on('a.id', '=', 'ar.activity_id');
+            })
+            ->when($activeRegionId, function($q) use ($activeRegionId) {
+                $q->join('checklists as c', 'c.id', '=', 'ar.checklist_id')
+                  ->join('serpos as sp', 'sp.id_serpo', '=', 'c.id_serpo')
+                  ->where('sp.id_region', $activeRegionId);
+            })
+            ->selectRaw("COALESCE(a.name, a.name, 'Tanpa nama') as label, COUNT(ar.id) as value")
+            ->groupByRaw("COALESCE(a.name, a.name, 'Tanpa nama')")
+            ->orderByDesc('value')
+            ->get();
+
+        // Ringkas Top N
+        $topN = 3;
+        $top = $activityDonut->take($topN);
+        $others = $activityDonut->slice($topN)->sum('value');
+        if ($others > 0) {
+            $top->push((object)['label' => 'Lainnya', 'value' => $others]);
+        }
 
         // ---- Grafik: serpo per region (pakai hasil $serpoByRegion) ----
         $serpoPerRegion = collect($serpoByRegion ?? [])->map(fn ($r) => [
@@ -173,7 +171,7 @@ class AdminHomeController extends Controller
             'value' => (int) ($r->serpos_count ?? 0),
         ])->values();
 
-        // ======= Leaderboard Points per Quarter dari Anchor (scoped ke region bila ada) =======
+        // ======= Leaderboard Points per Quarter dari Anchor =======
         $anchor = Carbon::create(2025, 9, 11);
         [$periodStart, $periodEnd, $periodLabel] = $this->currentQuarterRangeFromAnchor($anchor);
 
@@ -199,6 +197,23 @@ class AdminHomeController extends Controller
             'value' => (int) $r->points,
         ])->values();
 
+        // ---- NEW: Total star by Region (aggregate SUM of serpos.total_star grouped by serpos.id_region) ----
+        // Menggunakan tabel serpos: ambil id_region dari serpos lalu jumlahkan total_star
+        $totalStarByRegionQuery = DB::table('serpos as sp')
+            ->select(
+                'sp.id_region as id_region',
+                DB::raw('COALESCE(r.nama_region, CONCAT("Region #", sp.id_region)) as nama_region'),
+                DB::raw('COALESCE(SUM(sp.total_star),0) as total_star')
+            )
+            ->leftJoin('regions as r', 'r.id_region', '=', 'sp.id_region')
+            ->when($activeRegionId, function($q) use ($activeRegionId){
+                $q->where('sp.id_region', $activeRegionId);
+            })
+            ->groupBy('sp.id_region', 'r.nama_region')
+            ->orderByDesc('total_star');
+
+        $totalStarByRegion = $totalStarByRegionQuery->get();
+
         return view('bestRising.admin.index', [
             'counts'             => $counts,
             'stats'              => $counts,
@@ -207,19 +222,17 @@ class AdminHomeController extends Controller
             'latestUsers'        => $latestUsers,
             'latestSerpo'        => $latestSerpo,
             'latestSegmen'       => $latestSegmen,
-            'userKategori'       => $userKategori,
             'serpoPerRegion'     => $serpoPerRegion,
-
+            'activityDonut'      => $top,
             'periodStart'        => $periodStart,
             'periodEnd'          => $periodEnd,
             'periodLabel'        => $periodLabel,
             'serpoPointsQuarter' => $serpoPointsQuarter,
-
             'sessionRegionId'    => $sessionRegion,
             'activeRegionId'     => $activeRegionId,
             'regionOptions'      => $regionOptions,
-
-            'statusStats'        => $statusStats, // ⟵ KPI status
+            'statusStats'        => $statusStats,
+            'totalStarByRegion'  => $totalStarByRegion,
         ]);
     }
 }

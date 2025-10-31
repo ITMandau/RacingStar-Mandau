@@ -118,74 +118,95 @@
 
         <!-- Sidebar Menu -->
         <nav class="mt-2">
-            <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
-              <li class="nav-item">
-                    <a href="{{ route('admin.home') }}" class="nav-link">
-                        <i class="nav-icon fas fa-home"></i>
-                        <p> HOME </p>
-                    </a>
-                </li>
-                  @php
-                    $u = session('auth_user');
-                    $isSuper = isset($u['email']) && $u['email'] === 'superadmin@mandau.id';
-                  @endphp
-                  @if ($isSuper)
-                    <li class="nav-item">
-                        <a href="{{ route('admin.user-bestrising.index') }}" class="nav-link">
-                            <i class="nav-icon fas fa-users"></i>
-                            <p> User </p>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                      <a href="{{ route('admin.kategori-user.index') }}" class="nav-link">
-                        <i class="nav-icon fas fa-user-tag"></i><p> Kategori User </p>
-                      </a>
-                    </li>
-                  @endif
+        <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
 
-                <li class="nav-item">
-                    <a href="{{ route('admin.region.index') }}" class="nav-link">
-                        <i class="nav-icon fas fa-map-marked-alt"></i>
-                        <p> Region </p>
-                    </a>
-                </li>
+          {{-- HOME --}}
+          <li class="nav-item">
+            <a href="{{ route('admin.home') }}" class="nav-link">
+              <i class="nav-icon fas fa-house-user"></i>
+              <p> Home </p>
+            </a>
+          </li>
 
-                <li class="nav-item">
-                    <a href="{{ route('admin.serpo.index') }}" class="nav-link">
-                        <i class="nav-icon fas fa-warehouse"></i>
-                        <p> Serpo </p>
-                    </a>
-                </li>
+          @php
+            $u = session('auth_user');
+            $isSuper = isset($u['email']) && $u['email'] === 'superadmin@mandau.id';
+          @endphp
 
-                <li class="nav-item">
-                    <a href="{{ route('admin.segmen.index') }}" class="nav-link">
-                        <i class="nav-icon fas fa-cubes"></i>
-                        <p> Segmen </p>
-                    </a>
-                </li>
+          {{-- SUPERADMIN ONLY --}}
+          @if ($isSuper)
+            <li class="nav-item">
+              <a href="{{ route('admin.user-bestrising.index') }}" class="nav-link">
+                <i class="nav-icon fas fa-user-shield"></i>
+                <p> User </p>
+              </a>
+            </li>
 
-                <li class="nav-item">
-                    <a href="{{ route('admin.aktifitas.index') }}" class="nav-link">
-                        <i class="nav-icon fas fa-tasks"></i>
-                        <p>Master Activity </p>
-                    </a>
-                </li>
+            <li class="nav-item">
+              <a href="{{ route('admin.kategori-user.index') }}" class="nav-link">
+                <i class="nav-icon fas fa-id-badge"></i>
+                <p> Kategori User </p>
+              </a>
+            </li>
+          
+            {{-- REGION --}}
+            <li class="nav-item">
+              <a href="{{ route('admin.region.index') }}" class="nav-link">
+                <i class="nav-icon fas fa-map"></i>
+                <p> Region </p>
+              </a>
+            </li>
 
-                <li class="nav-item">
-                    <a href="{{ route('admin.checklists.index') }}" class="nav-link">
-                        <i class="nav-icon fas fa-check-square"></i>
-                        <p> Activity Result </p>
-                    </a>
-                </li>
+            {{-- MASTER ACTIVITY --}}
+            <li class="nav-item">
+              <a href="{{ route('admin.aktifitas.index') }}" class="nav-link">
+                <i class="nav-icon fas fa-clipboard-list"></i>
+                <p> Master Activity </p>
+              </a>
+            </li>
+          @endif
+          {{-- SERPO --}}
+          <li class="nav-item">
+            <a href="{{ route('admin.serpo.index') }}" class="nav-link">
+              <i class="nav-icon fas fa-industry"></i>
+              <p> Serpo </p>
+            </a>
+          </li>
 
-                <li class="nav-item">
-                    <a href="{{ route('admin.checklists.allresult') }}" class="nav-link">
-                        <i class="nav-icon fas fa-check-square"></i>
-                        <p> All Activity </p>
-                    </a>
-                </li>
-            </ul>
-        </nav>
+          {{-- SEGMEN --}}
+          <li class="nav-item">
+            <a href="{{ route('admin.segmen.index') }}" class="nav-link">
+              <i class="nav-icon fas fa-layer-group"></i>
+              <p> Segmen </p>
+            </a>
+          </li>
+
+          {{-- ACTIVITY RESULT --}}
+          <li class="nav-item">
+            <a href="{{ route('admin.checklists.index') }}" class="nav-link">
+              <i class="nav-icon fas fa-clipboard-check"></i>
+              <p> Activity Result </p>
+            </a>
+          </li>
+
+          {{-- ALL ACTIVITY --}}
+          <li class="nav-item">
+            <a href="{{ route('admin.checklists.allresult') }}" class="nav-link">
+              <i class="nav-icon fas fa-list-alt"></i>
+              <p> All Activity </p>
+            </a>
+          </li>
+
+          {{-- PENGURANGAN STAR --}}
+          <li class="nav-item">
+            <a href="{{ route('admin.pengurangan-star.index') }}" class="nav-link">
+              <i class="nav-icon fas fa-star-half-alt"></i>
+              <p> Pengurangan Star </p>
+            </a>
+          </li>
+        </ul>
+      </nav>
+
 
     </div>
   </aside>

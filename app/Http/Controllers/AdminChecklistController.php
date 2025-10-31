@@ -3,8 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Exports\AllResultsExport;
+use App\Exports\AllResultsWithRegionExport;
 use App\Exports\ChecklistsExport;
-use App\Models\{Checklist, ActivityResult};
+use App\Models\{Checklist, ActivityResult, Serpo};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -208,7 +209,8 @@ class AdminChecklistController extends Controller
         }
 
         $filename = 'all-results-'.now()->format('Ymd_His').'.xlsx';
-        return Excel::download(new AllResultsExport($filters), $filename);
+        //return Excel::download(new AllResultsExport($filters), $filename);
+        return Excel::download(new AllResultsWithRegionExport($filters), $filename);
     }
 
     public function index(Request $request)
@@ -508,6 +510,8 @@ class AdminChecklistController extends Controller
 
         try {
             DB::transaction(function () use ($action, $alasan, $checklist) {
+                $idSerpo  = $checklist->id_serpo;
+
                 if ($action === 'approve') {
                     ActivityResult::withTrashed()
                         ->where('checklist_id', $checklist->id)
@@ -525,6 +529,8 @@ class AdminChecklistController extends Controller
                         'total_point'          => $approved,
                         'status'               => 'completed',
                     ]);
+
+                    if ($idSerpo) Serpo::where('id_serpo', $idSerpo)->update(['total_star' => DB::raw("total_star + {$approved}")]);
                 }
 
                 elseif ($action === 'reject') {
@@ -605,20 +611,30 @@ class AdminChecklistController extends Controller
             'ids.*' => ['integer','distinct'],
         ]);
 
-        $ids = $data['ids'];
-
-        // Hanya approve yang belum completed
-        $count = \App\Models\Checklist::query()
-            ->whereIn('id', $ids)
+        $toApprove = Checklist::query()
+            ->whereIn('id', $data['ids'])
             ->where('status', '!=', 'completed')
+            ->whereNotNull('id_serpo')
+            ->get(['id','id_serpo','total_point']);
+
+        // Kelompokkan total star per serpo
+        $checklistSerpos = [];
+        foreach ($toApprove as $row) {
+            $sid = (int)$row->id_serpo;
+            $checklistSerpos[$sid] = ($checklistSerpos[$sid] ?? 0) + (int)$row->total_point;
+        }
+
+        $count = Checklist::query()
+            ->whereIn('id', $toApprove->pluck('id'))
             ->update([
                 'status'       => 'completed',
-                'submitted_at' => Carbon::now(), // opsional: set waktu selesai saat approve
+                'submitted_at' => Carbon::now(),
             ]);
-        ActivityResult::whereIn('checklist_id', $ids)
-            ->update([
-                'is_approval'  => true,
-            ]);
+        ActivityResult::whereIn('checklist_id', $toApprove->pluck('id'))->update(['is_approval' => true]);
+
+        foreach ($checklistSerpos as $serpoId => $total_star) {
+            Serpo::where('id_serpo', $serpoId)->update(['total_star' => DB::raw("total_star + {$total_star}")]);
+        }
 
         return response()->json([
             'message' => "Berhasil approve {$count} checklist.",

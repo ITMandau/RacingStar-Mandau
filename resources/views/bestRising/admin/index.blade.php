@@ -72,41 +72,29 @@
         </div>
       </div>
 
-      {{-- KPI status checklist (sinkron gaya KPI utama) --}}
+      {{-- KPI status checklist --}}
       <div class="row g-3 mt-2 kpi-status">
         <div class="col-12 col-sm-3">
           <a class="small-box kpi-box kpi-acc" href="{{ route('admin.checklists.index') }}">
-            <div class="inner">
-              <h3>{{ $statusStats['acc'] }}</h3>
-              <p>Approved</p>
-            </div>
+            <div class="inner"><h3>{{ $statusStats['acc'] }}</h3><p>Approved</p></div>
             <div class="icon"><i class="fas fa-check-circle"></i></div>
           </a>
         </div>
         <div class="col-12 col-sm-3">
           <a class="small-box kpi-box kpi-pending" href="{{ route('admin.checklists.index') }}">
-            <div class="inner">
-              <h3>{{ $statusStats['pending'] }}</h3>
-              <p>Pending</p>
-            </div>
+            <div class="inner"><h3>{{ $statusStats['pending'] }}</h3><p>Pending</p></div>
             <div class="icon"><i class="fas fa-hourglass-half"></i></div>
           </a>
         </div>
         <div class="col-12 col-sm-3">
           <a class="small-box kpi-box kpi-review-admin" href="{{ route('admin.checklists.index') }}">
-            <div class="inner">
-              <h3>{{ $statusStats['review_admin'] }}</h3>
-              <p>Review Admin</p>
-            </div>
+            <div class="inner"><h3>{{ $statusStats['review_admin'] }}</h3><p>Review Admin</p></div>
             <div class="icon"><i class="fas fa-hourglass-half"></i></div>
           </a>
         </div>
         <div class="col-12 col-sm-3">
           <a class="small-box kpi-box kpi-reject" href="{{ route('admin.checklists.index') }}">
-            <div class="inner">
-              <h3>{{ $statusStats['rejected'] }}</h3>
-              <p>Rejected</p>
-            </div>
+            <div class="inner"><h3>{{ $statusStats['rejected'] }}</h3><p>Rejected</p></div>
             <div class="icon"><i class="fas fa-times-circle"></i></div>
           </a>
         </div>
@@ -116,9 +104,9 @@
       <div class="row mt-3">
         <div class="col-xl-6">
           <div class="card h-100">
-            <div class="card-header"><strong>Distribusi User per Kategori</strong></div>
+            <div class="card-header"><strong>Activity Result per Activity</strong></div>
             <div class="card-body">
-              <div class="chart-box"><canvas id="chartUserKategori"></canvas></div>
+              <div class="chart-box"><canvas id="chartActivityDonut"></canvas></div>
             </div>
           </div>
         </div>
@@ -127,7 +115,7 @@
           <div class="card h-100">
             <div class="card-header d-flex align-items-center justify-content-between">
               <strong>Jumlah Serpo per Region</strong>
-              <a href="{{ route('admin.region.index') }}" class="btn btn-xs btn-outline-secondary">Detail</a>
+              <a href="{{ route('admin.region.index') }}" class="btn btn-sm btn-outline-secondary">Detail</a>
             </div>
             <div class="card-body">
               <div class="chart-box"><canvas id="chartSerpoRegion"></canvas></div>
@@ -136,7 +124,7 @@
         </div>
       </div>
 
-      {{-- Top Serpo by Points (Periode 3 Bulan dari Anchor) --}}
+      {{-- Top Serpo by Points --}}
       <div class="row mt-3">
         <div class="col-xl-8">
           <div class="card h-100">
@@ -182,41 +170,23 @@
         </div>
       </div>
 
-      {{-- Distribusi (Top 5) --}}
+      {{-- Distribusi (Total Star by Region) --}}
       <div class="row mt-3">
-        <div class="col-lg-6">
+        <div class="col-lg-12">
           <div class="card h-100">
             <div class="card-header d-flex align-items-center justify-content-between">
-              <strong>Top Region by Serpo</strong>
-              <a href="{{ route('admin.region.index') }}" class="btn btn-xs btn-outline-secondary">Kelola Region</a>
+              <strong>Total Star by Region</strong>
+              <a href="{{ route('admin.region.index') }}" class="btn btn-sm btn-outline-secondary">Kelola Region</a>
             </div>
             <div class="card-body p-0">
               <table class="table table-hover mb-0">
-                <thead><tr><th>Region</th><th class="text-right pr-3"># Serpo</th></tr></thead>
+                <thead><tr><th>Region</th><th class="text-right pr-3">Total Star</th></tr></thead>
                 <tbody>
-                  @forelse($serpoByRegion as $r)
-                    <tr><td>{{ $r->nama_region }}</td><td class="text-right pr-3">{{ $r->serpos_count }}</td></tr>
-                  @empty
-                    <tr><td colspan="2" class="text-center text-muted p-3">Belum ada data</td></tr>
-                  @endforelse
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <div class="col-lg-6 mt-3 mt-lg-0">
-          <div class="card h-100">
-            <div class="card-header d-flex align-items-center justify-content-between">
-              <strong>Top Serpo by Segmen</strong>
-              <a href="{{ route('admin.serpo.index') }}" class="btn btn-xs btn-outline-secondary">Kelola Serpo</a>
-            </div>
-            <div class="card-body p-0">
-              <table class="table table-hover mb-0">
-                <thead><tr><th>Serpo</th><th class="text-right pr-3"># Segmen</th></tr></thead>
-                <tbody>
-                  @forelse($segmenBySerpo as $s)
-                    <tr><td>{{ $s->nama_serpo }}</td><td class="text-right pr-3">{{ $s->segmens_count }}</td></tr>
+                  @forelse($totalStarByRegion as $r)
+                    <tr>
+                      <td>{{ $r->nama_region }}</td>
+                      <td class="text-right pr-3">{{ number_format($r->total_star ?? 0) }}</td>
+                    </tr>
                   @empty
                     <tr><td colspan="2" class="text-center text-muted p-3">Belum ada data</td></tr>
                   @endforelse
@@ -227,8 +197,6 @@
         </div>
       </div>
 
-      {{-- Terbaru (opsional) --}}
-
     </div>
   </section>
 </div>
@@ -237,7 +205,7 @@
   .table td, .table th { vertical-align: middle; }
   .table td.text-break { word-break: break-word; max-width: 180px; }
 
-  /* Small-box seragam */
+  /* ====== KPI small-box ====== */
   .kpi-box.small-box{
     background:#fff;
     border:1px solid #e9ecef;
@@ -249,6 +217,7 @@
   .kpi-box.small-box .inner h3{ font-weight:700; color:#1459d2; }
   .kpi-box.small-box .inner p{ margin-bottom:0; color:#6c757d; }
 
+  /* FIX: override AdminLTE yg bikin icon raksasa */
   .kpi-box.small-box .icon{
     position:absolute !important;
     top:14px !important;
@@ -256,32 +225,42 @@
     width:auto !important;
     height:auto !important;
     line-height:1 !important;
-    font-size:28px !important;
-    color:#28a745 !important;
-    opacity:.75 !important;
+    font-size:0 !important;            /* matikan font-size besar default */
     transform:none !important;
+    opacity:.9 !important;
+    color:inherit !important;           /* jangan paksa hijau di sini */
   }
-  .kpi-box.small-box .icon i{ font-size:28px; }
+  /* ukuran icon sesungguhnya */
+  .kpi-box.small-box .icon > i{
+    font-size:32px !important;         /* atur 28–36px sesuai selera */
+  }
 
-  /* Variasi status */
+  /* Warna default untuk 4 KPI utama (User/Region/Serpo/Segmen) */
+  .kpi-box.small-box:not(.kpi-acc):not(.kpi-pending):not(.kpi-review-admin):not(.kpi-reject) .icon > i{
+    color:#2fb578 !important;
+  }
+
+  /* ====== Variasi status + warna icon ====== */
   .kpi-status .kpi-acc     { border-left:4px solid #28a745; }
-  .kpi-status .kpi-acc .icon { color:#28a745 !important; }
+  .kpi-status .kpi-acc .icon > i{ color:#28a745 !important; }
 
   .kpi-status .kpi-pending { border-left:4px solid #f0ad4e; }
-  .kpi-status .kpi-pending .icon { color:#f0ad4e !important; }
+  .kpi-status .kpi-pending .icon > i{ color:#f0ad4e !important; }
 
   .kpi-status .kpi-review-admin { border-left:4px solid #ac07ff; }
-  .kpi-status .kpi-review-admin .icon { color:#ac07ff !important; }
+  .kpi-status .kpi-review-admin .icon > i{ color:#ac07ff !important; }
 
   .kpi-status .kpi-reject  { border-left:4px solid #dc3545; }
-  .kpi-status .kpi-reject .icon { color:#dc3545 !important; }
+  .kpi-status .kpi-reject .icon > i{ color:#dc3545 !important; }
 
-  /* Chart sizing */
+  /* ====== Chart area (external tooltip butuh relative) ====== */
   .chart-box{height:280px; position:relative;}
   @media (max-width: 575.98px){ .chart-box{height:240px;} }
+
+  .chartjs-ext-tooltip{ pointer-events:none; }
 </style>
 
-{{-- Pin versi Chart.js dan tambahkan lazy-init + animasi --}}
+{{-- Chart.js --}}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script>
 (function(){
@@ -292,12 +271,13 @@
   greet(); today(); tick(); setInterval(tick,1000);
 })();
 
-// ====== Chart.js defaults: paksa animasi aktif ======
+// ===== Defaults Chart.js (ringan)
 if (window.Chart) {
   Chart.defaults.animation = { duration: 900, easing: 'easeOutQuart' };
+  Chart.defaults.font.family = 'system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif';
 }
 
-// ====== Helper: buat chart saat kanvas terlihat (biar animasi selalu kelihatan)
+// ===== Lazy render
 function makeChartWhenVisible(canvasId, makeConfig){
   const el = document.getElementById(canvasId);
   if (!el) return;
@@ -321,32 +301,108 @@ function makeChartWhenVisible(canvasId, makeConfig){
   io.observe(el);
 }
 
-// ====== Data dari controller
-const userKategori       = @json($userKategori ?? []);
+// ===== Data
 const serpoPerRegion     = @json($serpoPerRegion ?? []);
 const serpoPointsQuarter = @json($serpoPointsQuarter ?? []);
+const activityDonut      = @json($activityDonut ?? []);
 
-// ====== Donut: user per kategori
-makeChartWhenVisible('chartUserKategori', () => {
-  if (!userKategori.length) return null;
+// ===== Palet pastel
+function genColors(n){
+  const out=[]; for(let i=0;i<n;i++){ const h=Math.round((360/n)*i + 6); out.push(`hsl(${h}, 70%, 60%)`); }
+  return out;
+}
+
+// ===== External Tooltip (HTML)
+function makeExternalTooltipHandler({ valueOnly = true } = {}) {
+  const nf = new Intl.NumberFormat('id-ID');
+
+  return function externalTooltipHandler(context) {
+    const { chart, tooltip } = context;
+    let tooltipEl = chart.$extTooltip;
+
+    // Buat elemen sekali per chart
+    if (!tooltipEl) {
+      tooltipEl = chart.$extTooltip = document.createElement('div');
+      tooltipEl.className = 'chartjs-ext-tooltip';
+      tooltipEl.style.position = 'absolute';
+      tooltipEl.style.pointerEvents = 'none';
+      tooltipEl.style.transform = 'translate(-50%, -110%)';
+      tooltipEl.style.zIndex = '9999';
+      tooltipEl.style.background = 'rgba(15,23,42,0.92)'; // slate-900
+      tooltipEl.style.color = '#fff';
+      tooltipEl.style.border = '1px solid rgba(255,255,255,0.15)';
+      tooltipEl.style.borderRadius = '.5rem';
+      tooltipEl.style.padding = '.35rem .5rem';
+      tooltipEl.style.font = '500 12px/1.2 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif';
+      tooltipEl.style.whiteSpace = 'nowrap';
+
+      const parent = chart.canvas.parentNode;
+      if (getComputedStyle(parent).position === 'static') parent.style.position = 'relative';
+      parent.appendChild(tooltipEl);
+    }
+
+    // Hide tooltip
+    if (tooltip.opacity === 0) {
+      tooltipEl.style.opacity = 0;
+      return;
+    }
+
+    // Ambil nilai
+    let val = null, title = '';
+    if (tooltip.dataPoints && tooltip.dataPoints.length) {
+      const dp = tooltip.dataPoints[0];
+      title = dp.label || '';
+      const parsed = dp.parsed;
+      val = typeof parsed === 'object' ? (parsed.x ?? parsed.y ?? null) : parsed;
+    }
+
+    tooltipEl.textContent = valueOnly ? nf.format(val ?? 0) : `${title}: ${nf.format(val ?? 0)}`;
+
+    // Posisi mengikuti caret
+    tooltipEl.style.opacity = 1;
+    tooltipEl.style.left = tooltip.caretX + 'px';
+    tooltipEl.style.top  = tooltip.caretY + 'px';
+  };
+}
+
+/* ===================== DONUT: Activity Result per Activity ===================== */
+makeChartWhenVisible('chartActivityDonut', () => {
+  if (!activityDonut.length) return null;
+
+  const labels = activityDonut.map(x => x.label || 'Tanpa nama');
+  const values = activityDonut.map(x => Number(x.value));
+
   return {
     type: 'doughnut',
     data: {
-      labels: userKategori.map(x => x.label),
-      datasets: [{ data: userKategori.map(x => x.value) }]
+      labels,
+      datasets: [{
+        label: 'Activity Results',
+        data: values,
+        backgroundColor: genColors(labels.length),
+        borderWidth: 0,
+        hoverOffset: 6
+      }]
     },
     options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom' } },
-      cutout: '55%',
-      animation: { duration: 900, easing: 'easeOutQuart', animateRotate: true, animateScale: true }
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '58%',
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: {
+          enabled: false, // pakai external
+          external: makeExternalTooltipHandler({ valueOnly: true })
+        }
+      }
     }
   };
 });
 
-// ====== Horizontal bar: serpo per region
+/* ===================== BAR: Serpo per Region ===================== */
 makeChartWhenVisible('chartSerpoRegion', () => {
   if (!serpoPerRegion.length) return null;
+
   return {
     type: 'bar',
     data: {
@@ -356,17 +412,22 @@ makeChartWhenVisible('chartSerpoRegion', () => {
     options: {
       responsive: true, maintainAspectRatio: false,
       indexAxis: 'y',
-      plugins: { legend: { display: false } },
-      scales: { x: { beginAtZero: true, ticks: { precision: 0 } } },
-      animation: { duration: 900, easing: 'easeOutQuart' },
-      animations: { x: { from: 0 }, y: { from: 0 } }
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          enabled: false, // pakai external
+          external: makeExternalTooltipHandler({ valueOnly: true })
+        }
+      },
+      scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
     }
   };
 });
 
-// ====== Horizontal bar: top serpo by points (quarter)
+/* ===================== BAR: Top Serpo by Points (Quarter) ===================== */
 makeChartWhenVisible('chartSerpoPointsQuarter', () => {
   if (!serpoPointsQuarter.length) return null;
+
   return {
     type: 'bar',
     data: {
@@ -378,11 +439,12 @@ makeChartWhenVisible('chartSerpoPointsQuarter', () => {
       indexAxis: 'y',
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: (ctx)=> ` ${ctx.raw} poin` } }
+        tooltip: {
+          enabled: false, // pakai external
+          external: makeExternalTooltipHandler({ valueOnly: true })
+        }
       },
-      scales: { x: { beginAtZero: true, ticks: { precision: 0 } } },
-      animation: { duration: 900, easing: 'easeOutQuart' },
-      animations: { x: { from: 0 }, y: { from: 0 } }
+      scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
     }
   };
 });

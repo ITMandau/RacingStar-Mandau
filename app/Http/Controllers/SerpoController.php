@@ -14,9 +14,15 @@ class SerpoController extends Controller
 {
     public function export(Request $request)
     {
+        // gunakan session same as blade
+        $u = session('auth_user') ?? null;
+        $isSuper = isset($u['email']) && $u['email'] === 'superadmin@mandau.id';
+        $userRegion = $u['region_id'] ?? $u['id_region'] ?? null;
+
+        // Jika user bukan super dan punya region -> paksa export hanya region itu
         $filters = [
-            'id_region' => $request->input('id_region'),
-            'q'         => $request->input('q'), // search global dari DataTables
+            'id_region' => ($isSuper ? $request->input('id_region') : $userRegion),
+            'q'         => $request->input('q'),
         ];
 
         return Excel::download(new SerpoExport($filters), 'data_serpo.xlsx');
@@ -24,15 +30,24 @@ class SerpoController extends Controller
 
     public function index(Request $request)
     {
+        // jika ajax -> DataTables response
         if ($request->ajax()) {
+            $u = session('auth_user') ?? null;
+            $isSuper = isset($u['email']) && $u['email'] === 'superadmin@mandau.id';
+            $userRegion = $u['region_id'] ?? $u['id_region'] ?? null;
+
             $query = Serpo::with('region')->select('serpos.*');
 
-            // filter by region (opsional)
-            if ($request->filled('id_region')) {
-                $query->where('id_region', $request->id_region);
+            // enforce server-side filter: kalau user punya region & bukan super, paksa
+            if (!$isSuper && $userRegion) {
+                $query->where('id_region', $userRegion);
+            } else {
+                if ($request->filled('id_region')) {
+                    $query->where('id_region', $request->id_region);
+                }
             }
 
-            // search global: nama_serpo / region
+            // global search
             if ($request->has('search') && !empty($request->input('search.value'))) {
                 $s = $request->input('search.value');
                 $query->where(function ($q) use ($s) {
@@ -44,34 +59,55 @@ class SerpoController extends Controller
             return DataTables::of($query)
                 ->addIndexColumn()
                 ->addColumn('region', fn($row) => $row->region?->nama_region ?? '-')
-                ->addColumn('action', function ($row) {
-                    return '
-                        <button class="btn btn-warning btn-sm btn-edit"
-                            data-id="'.$row->id_serpo.'"
-                            data-nama="'.$row->nama_serpo.'"
-                            data-region="'.$row->id_region.'">Edit</button>
-                        <button class="btn btn-danger btn-sm btn-delete"
-                            data-id="'.$row->id_serpo.'">Hapus</button>';
+                ->addColumn('action', function ($row) use ($u, $isSuper) {
+                    $userRegion = $u['region_id'] ?? $u['id_region'] ?? null;
+                    $canManage = $isSuper || is_null($userRegion) || ($userRegion == $row->id_region);
+
+                    $btns = '';
+                    if ($canManage) {
+                        $btns .= '<button class="btn btn-warning btn-sm btn-edit"
+                            data-id="'. $row->id_serpo .'"
+                            data-nama="'. e($row->nama_serpo) .'"
+                            data-region="'. $row->id_region .'">Edit</button> ';
+                        $btns .= '<button class="btn btn-danger btn-sm btn-delete"
+                            data-id="'. $row->id_serpo .'"
+                            data-region="'. $row->id_region .'">Hapus</button>';
+                    } else {
+                        $btns = '<span class="text-muted small">No actions</span>';
+                    }
+                    return $btns;
                 })
                 ->rawColumns(['action'])
                 ->make(true);
         }
 
+        // non-ajax: render view, kirim regions & session info
         return view('bestRising.admin.serpo.index', [
             'regions' => Region::orderBy('nama_region')->get(),
+            // follow same names used di blade
+            'userRegion' => session('auth_user')['region_id'] ?? session('auth_user')['id_region'] ?? null,
+            'isSuper'    => isset(session('auth_user')['email']) && session('auth_user')['email'] === 'superadmin@mandau.id',
         ]);
     }
 
     public function store(Request $request)
     {
+        $u = session('auth_user') ?? null;
+        $isSuper = isset($u['email']) && $u['email'] === 'superadmin@mandau.id';
+        $userRegion = $u['region_id'] ?? $u['id_region'] ?? null;
+
         $request->validate([
             'id_region'   => 'required|exists:regions,id_region',
             'nama_serpo'  => [
                 'required','string','max:100',
-                // unik per region
                 Rule::unique('serpos','nama_serpo')->where(fn($q) => $q->where('id_region', $request->id_region)),
             ],
         ]);
+
+        // backend enforcement: kalau bukan super dan punya region, tidak boleh menambah di region lain
+        if (!$isSuper && $userRegion && ($userRegion != $request->input('id_region'))) {
+            return response()->json(['message' => 'Anda tidak memiliki izin menambah serpo di region ini.'], 403);
+        }
 
         Serpo::create($request->only('id_region','nama_serpo'));
 
@@ -80,6 +116,10 @@ class SerpoController extends Controller
 
     public function update(Request $request, $id)
     {
+        $u = session('auth_user') ?? null;
+        $isSuper = isset($u['email']) && $u['email'] === 'superadmin@mandau.id';
+        $userRegion = $u['region_id'] ?? $u['id_region'] ?? null;
+
         $serpo = Serpo::findOrFail($id);
 
         $request->validate([
@@ -92,6 +132,18 @@ class SerpoController extends Controller
             ],
         ]);
 
+        // backend checks:
+        if (!$isSuper && $userRegion) {
+            // tidak boleh edit serpo di luar region nya
+            if ($userRegion != $serpo->id_region) {
+                return response()->json(['message' => 'Anda tidak memiliki izin mengubah serpo ini.'], 403);
+            }
+            // tidak boleh memindahkan ke region lain
+            if ($userRegion != $request->input('id_region')) {
+                return response()->json(['message' => 'Anda tidak dapat memindahkan serpo ke region lain.'], 403);
+            }
+        }
+
         $serpo->update($request->only('id_region','nama_serpo'));
 
         return response()->json(['success' => true, 'message' => 'Serpo berhasil diupdate']);
@@ -99,7 +151,18 @@ class SerpoController extends Controller
 
     public function destroy($id)
     {
-        Serpo::findOrFail($id)->delete();
+        $u = session('auth_user') ?? null;
+        $isSuper = isset($u['email']) && $u['email'] === 'superadmin@mandau.id';
+        $userRegion = $u['region_id'] ?? $u['id_region'] ?? null;
+
+        $serpo = Serpo::findOrFail($id);
+
+        if (!$isSuper && $userRegion && ($userRegion != $serpo->id_region)) {
+            return response()->json(['message' => 'Anda tidak memiliki izin menghapus serpo ini.'], 403);
+        }
+
+        $serpo->delete();
+
         return response()->json(['success' => true, 'message' => 'Serpo berhasil dihapus']);
     }
 
