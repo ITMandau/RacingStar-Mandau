@@ -416,10 +416,10 @@ class AdminChecklistController extends Controller
             $kw = '%'.$search.'%';
             $checklistQuery->where(function($qq) use ($kw) {
                 $qq->whereHas('user',   fn($u) => $u->where('nama','like',$kw)->orWhere('email','like',$kw))
-                   ->orWhereHas('region',fn($r) => $r->where('nama_region','like',$kw))
-                   ->orWhereHas('serpo', fn($s) => $s->where('nama_serpo','like',$kw))
-                   ->orWhere('team','like',$kw)
-                   ->orWhere('status','like',$kw);
+                    ->orWhereHas('region',fn($r) => $r->where('nama_region','like',$kw))
+                    ->orWhereHas('serpo', fn($s) => $s->where('nama_serpo','like',$kw))
+                    ->orWhere('team','like',$kw)
+                    ->orWhere('status','like',$kw);
             });
         }
 
@@ -433,6 +433,38 @@ class AdminChecklistController extends Controller
         }
 
         $checklistIds = $checklists->pluck('id')->all();
+
+        $serpoColumn = null;
+        if (Schema::hasColumn('checklists', 'serpo_id')) {
+            $serpoColumn = 'serpo_id';
+        } elseif (Schema::hasColumn('checklists', 'id_serpo')) {
+            $serpoColumn = 'id_serpo';
+        }
+
+        $serpoIdsFromSelection = collect();
+        if ($serpoColumn) {
+            $serpoIdsFromSelection = Checklist::query()
+                ->whereIn('id', $checklistIds)
+                ->whereNotNull($serpoColumn)
+                ->pluck($serpoColumn);
+        } else {
+            $serpoIdsFromSelection = Checklist::query()
+                ->whereIn('id', $checklistIds)
+                ->with('user:id_userBestrising,id_serpo')
+                ->get()
+                ->pluck('user.id_serpo')
+                ->filter();
+        }
+
+        $serpoIdsToProcess = collect();
+        if ($serpoId) {
+            $serpoIdsToProcess->push($serpoId);
+        }
+        $serpoIdsToProcess = $serpoIdsToProcess
+            ->merge($serpoIdsFromSelection)
+            ->filter()
+            ->unique()
+            ->values();
 
         $activityResultIds = DB::table('activity_results')
             ->whereIn('checklist_id', $checklistIds)
@@ -471,6 +503,7 @@ class AdminChecklistController extends Controller
 
         DB::beginTransaction();
         try {
+            // HAPUS FILE FISIK
             $deletedFiles = 0;
             foreach (array_unique($photoPaths) as $relPath) {
                 if (Storage::disk('public')->exists($relPath) && Storage::disk('public')->delete($relPath)) {
@@ -478,19 +511,81 @@ class AdminChecklistController extends Controller
                 }
             }
 
+            // HAPUS DATA ACTIVITY & FOTO
             if (!empty($activityResultIds)) {
-                $deleted['photos']  = DB::table('activity_result_photos')->whereIn('activity_result_id', $activityResultIds)->delete();
-                $deleted['results'] = DB::table('activity_results')->whereIn('id', $activityResultIds)->delete();
+                $deleted['photos'] = DB::table('activity_result_photos')
+                    ->whereIn('activity_result_id', $activityResultIds)
+                    ->delete();
+
+                $deleted['results'] = DB::table('activity_results')
+                    ->whereIn('id', $activityResultIds)
+                    ->delete();
             }
 
             foreach (Checklist::whereIn('id', $checklistIds)->cursor() as $cl) {
-                if (method_exists($cl, 'items')) $cl->items()->delete();
+                if (method_exists($cl, 'items')) {
+                    $cl->items()->delete();
+                }
                 $cl->delete();
                 $deleted['checklists']++;
             }
 
-            DB::commit();
             $deleted['files'] = $deletedFiles;
+
+            // === HANDLE total_serpo & penguranganstars UNTUK SERPO TERPILIH ===
+            if ($serpoIdsToProcess->isNotEmpty()) {
+                foreach ($serpoIdsToProcess as $targetSerpoId) {
+                    $remainingChecklistIds = Checklist::query()
+                        ->where(function ($q) use ($serpoColumn, $targetSerpoId) {
+                            if ($serpoColumn) {
+                                $q->where($serpoColumn, $targetSerpoId);
+                            } else {
+                                $q->whereHas('user', fn($u) => $u->where('id_serpo', $targetSerpoId));
+                            }
+                        })
+                        ->pluck('id')
+                        ->all();
+
+                    $totalStars = 0;
+                    if (!empty($remainingChecklistIds)) {
+                        $totalStars = DB::table('activity_results')
+                            ->whereIn('checklist_id', $remainingChecklistIds)
+                            ->where('is_approval', true)
+                            ->count();
+                    }
+
+                    $totalPengurangan = 0;
+                    $hasPengurangan = false;
+                    if (Schema::hasTable('penguranganstars')) {
+                        $totalPengurangan = DB::table('penguranganstars')
+                            ->where('id_serpo', $targetSerpoId)
+                            ->sum('jumlah_pengurangan');
+
+                        $hasPengurangan = DB::table('penguranganstars')
+                            ->where('id_serpo', $targetSerpoId)
+                            ->exists();
+                    }
+
+                    if ($totalStars !== 0) {
+                        $newTotal = max($totalStars - $totalPengurangan, 0);
+                        DB::table('serpos')
+                            ->where('id_serpo', $targetSerpoId)
+                            ->update(['total_star' => $newTotal]);
+                    } else {
+                        if ($hasPengurangan) {
+                            DB::table('penguranganstars')
+                                ->where('id_serpo', $targetSerpoId)
+                                ->delete();
+                        }
+
+                        DB::table('serpos')
+                            ->where('id_serpo', $targetSerpoId)
+                            ->update(['total_star' => $totalStars]);
+                    }
+                }
+            }
+
+            DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -499,7 +594,10 @@ class AdminChecklistController extends Controller
             ]);
         } catch (\Throwable $e) {
             DB::rollBack();
-            return response()->json(['success'=>false,'message'=>'Gagal menghapus massal: '.$e->getMessage()], 500);
+            return response()->json([
+                'success'=>false,
+                'message'=>'Gagal menghapus massal: '.$e->getMessage(),
+            ], 500);
         }
     }
 

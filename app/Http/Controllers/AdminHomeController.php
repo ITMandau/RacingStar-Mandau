@@ -175,9 +175,21 @@ class AdminHomeController extends Controller
         $anchor = Carbon::create(2025, 9, 11);
         [$periodStart, $periodEnd, $periodLabel] = $this->currentQuarterRangeFromAnchor($anchor);
 
+        $penguranganPerSerpo = DB::table('penguranganstars')
+            ->select('id_serpo', DB::raw('SUM(jumlah_pengurangan) as total_pengurangan'))
+            ->groupBy('id_serpo');
+
         $topSerpoPointsQuarter = Checklist::query()
-            ->select('id_serpo', DB::raw('SUM(total_point) as points'))
-            ->whereNotNull('id_serpo')
+            ->leftJoinSub($penguranganPerSerpo, 'pengurangan', function($join){
+                $join->on('pengurangan.id_serpo', '=', 'checklists.id_serpo');
+            })
+            ->select(
+                'checklists.id_serpo',
+                DB::raw('SUM(total_point) as total_point'),
+                DB::raw('COALESCE(pengurangan.total_pengurangan, 0) as total_pengurangan'),
+                DB::raw('(SUM(total_point) - COALESCE(pengurangan.total_pengurangan, 0)) as points')
+            )
+            ->whereNotNull('checklists.id_serpo')
             ->where('status', 'completed')
             ->whereBetween('created_at', [$periodStart, $periodEnd])
             ->when($activeRegionId, function($q) use ($activeRegionId) {
@@ -185,7 +197,7 @@ class AdminHomeController extends Controller
                     $qq->where('id_region', $activeRegionId);
                 });
             })
-            ->groupBy('id_serpo')
+            ->groupBy('checklists.id_serpo', 'pengurangan.total_pengurangan')
             ->orderByDesc('points')
             ->with(['serpo:id_serpo,nama_serpo,id_region','serpo.region:id_region,nama_region'])
             ->take(7)
@@ -194,7 +206,8 @@ class AdminHomeController extends Controller
         $serpoPointsQuarter = $topSerpoPointsQuarter->map(fn ($r) => [
             'label' => $r->serpo->nama_serpo ?? ('Serpo #'.$r->id_serpo),
             'sub'   => $r->serpo && $r->serpo->region ? $r->serpo->region->nama_region : null,
-            'value' => (int) $r->points,
+            // Nilai akhir = total poin checklist dikurangi total pengurangan star per serpo
+            'value' => max(0, (int) $r->points),
         ])->values();
 
         // ---- NEW: Total star by Region (aggregate SUM of serpos.total_star grouped by serpos.id_region) ----
