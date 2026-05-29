@@ -38,7 +38,7 @@ class MatoaService
 
     private function checkAccount($user, $regions = [], $password = null, $serpo = null)
     {
-        $role = self::ROLE_MAP[$user['roles']['name'] ?? 'team'];
+        $role = self::ROLE_MAP[$user['roles']['name'] ?? 'team'] ?? 3;
         $category = Str::contains(strtolower($role), ['admin']) ? self::ROLE_MAP['admin'] : $role;
         $team_id = null;
         $region_id = null;
