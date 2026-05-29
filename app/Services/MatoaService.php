@@ -25,9 +25,9 @@ class MatoaService
         ]);
 
         $json = $response->json();
-        Log::info('matoa', ['res' => $json]);
         if (!$response->successful() || empty($json['user'])) {
-            return null;
+            Log::info('matoa-error', ['res' => $json, 'email' => $email]);
+            return UserBestrising::where('email', $email)->first();
         }
         $user = $json['user'];
         $regions = $user['area'] ?? [];

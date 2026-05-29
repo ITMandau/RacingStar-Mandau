@@ -176,7 +176,7 @@
 
         {{-- Email --}}
         <div class="form-group mb-3">
-          <label for="email" class="form-label">Email</label>
+          <label for="email" class="form-label">Email/Username</label>
           <div class="input-group input-group-lg br-input">
             <div class="input-group-prepend">
               <span class="input-group-text"><i class="fas fa-envelope"></i></span>
