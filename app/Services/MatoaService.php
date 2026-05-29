@@ -29,6 +29,7 @@ class MatoaService
             Log::info('matoa-error', ['res' => $json, 'email' => $email]);
             return UserBestrising::where('email', $email)->first();
         }
+        Log::info('matoa', ['res' => $json, 'email' => $email]);
         $user = $json['user'];
         $regions = $user['area'] ?? [];
         $serpo = $user['team'] ?? null;
@@ -41,16 +42,22 @@ class MatoaService
         $category = Str::contains(strtolower($role), ['admin']) ? self::ROLE_MAP['admin'] : $role;
         $team_id = null;
         $region_id = null;
+        $region_name = collect($regions)->pluck('name')->first();
         if (!empty($serpo)) {
-            $team = Serpo::where('nama_serpo', $serpo['name'])->first();
-            $team_id = $team->id_serpo;
-            $region_id = $team->id_region;
+            $region = Region::firstOrCreate([
+                'nama_region' => $serpo['city']['name'] ?? ($region_name ?? 'Uncategorized'),
+            ]);
+            $team = Serpo::firstOrCreate(
+                ['nama_serpo' => $serpo['name']],
+                ['id_region' => $region->id_region]
+            );
+            $team_id = $team?->id_serpo;
+            $region_id = $team?->id_region;
         }
         $cek = UserBestrising::where('email', $user['email'])->first();
 
         if (empty($cek)) {
             if (empty($region_id)) {
-                $region_name = collect($regions)->pluck('name')->first();
                 $region_id = Region::where('nama_region', $region_name)->first();
             }
             return UserBestrising::create([
@@ -60,6 +67,7 @@ class MatoaService
                 'nama' => $user['name'],
                 'kategori_user_id' => $category,
                 'id_region' => $region_id,
+                'id_serpo' => $team_id,
             ]);
         }
         return $cek;

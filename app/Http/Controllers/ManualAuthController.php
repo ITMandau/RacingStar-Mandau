@@ -33,7 +33,7 @@ class ManualAuthController extends Controller
         $matoa = $this->matoa->login($cred['email'], $cred['password']);
 
         if (empty($matoa)) {
-            Log::info('res', ['matoa' => $matoa]);
+            Log::info('MATOA.ERROR', ['matoa' => $matoa]);
             return back()->withErrors(['email' => 'SSO ERROR, Email atau password salah.'])->onlyInput('email');
         }
         $cred['email'] = $matoa->email;
