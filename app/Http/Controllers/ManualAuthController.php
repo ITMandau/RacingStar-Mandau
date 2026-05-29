@@ -6,22 +6,37 @@ namespace App\Http\Controllers;
 use App\Models\UserBestrising;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-
-use Illuminate\Support\Facades\Route; 
+use App\Services\MatoaService;
+use Illuminate\Support\Facades\Route;
+use Log; 
 
 class ManualAuthController extends Controller
 {
+    private MatoaService $matoa;
+    public function __construct(MatoaService $matoaService)
+    {
+        $this->matoa = $matoaService;
+    }
+
     public function loginForm()
     {
         return view('bestRising.login.index');
     }
-
+    
     public function login(Request $request)
     {
         $cred = $request->validate([
-            'email'    => ['required','email'],
+            'email'    => ['required'],
             'password' => ['required'],
         ]);
+
+        $matoa = $this->matoa->login($cred['email'], $cred['password']);
+
+        if (empty($matoa)) {
+            Log::info('res', ['matoa' => $matoa]);
+            return back()->withErrors(['email' => 'SSO ERROR, Email atau password salah.'])->onlyInput('email');
+        }
+        $cred['email'] = $matoa->email;
 
         $user = UserBestrising::with('kategoriUser')
             ->where('email', $cred['email'])
