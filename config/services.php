@@ -21,6 +21,11 @@ return [
         'scheme' => 'https',
     ],
 
+    'matoa' => [
+        'base_url' => env('MATOA_API_URL'),
+        'token' => env('MATOA_API_TOKEN'),
+    ],
+
     'postmark' => [
         'token' => env('POSTMARK_TOKEN'),
     ],
