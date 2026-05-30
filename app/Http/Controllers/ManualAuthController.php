@@ -23,6 +23,36 @@ class ManualAuthController extends Controller
         return view('bestRising.login.index');
     }
     
+    public function tokenVerification(Request $request){
+        $cred = $request->validate([
+            'token'    => ['required'],
+        ]);
+        $user = $this->matoa->verifyToken($cred['token']);
+
+        if (empty($user)) {
+            Log::info('MATOA.ERROR', ['user' => $user]);
+            return redirect()->route('login')->withErrors(['email' => 'Token is invalid', 'password' => 'Token is invalid']);
+        }
+        $role = strtolower($user->kategoriUser->nama_kategoriuser ?? '');
+        $isAdmin = in_array($role, ['admin','superadmin'], true);
+
+        session(['auth_user' => [
+            'id'            => $user->id_userBestrising,
+            'nik'           => $user->nik,
+            'nama'          => $user->nama,
+            'email'         => $user->email,
+            'kategori_id'   => $user->kategori_user_id,
+            'id_region'     => $user->id_region,
+            'id_serpo'      => $user->id_serpo,
+            'id_segmen'     => $user->id_segmen,
+            'kategori_nama' => $user->kategoriUser->nama_kategoriuser ?? null,
+            'is_admin'      => $isAdmin,
+        ]]);
+
+        return $isAdmin
+            ? redirect()->route('admin.home')
+            : (Route::has('teknisi.index') ? redirect()->route('teknisi.index') : redirect('/teknisi')); 
+    }
     public function login(Request $request)
     {
         $cred = $request->validate([

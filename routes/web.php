@@ -25,6 +25,7 @@ use App\Http\Controllers\DashboardTeknisiController;
 Route::get('/', [ManualAuthController::class, 'loginForm'])->name('login');
 Route::post('/login', [ManualAuthController::class, 'login'])->name('login.post');
 Route::post('/logout', [ManualAuthController::class, 'logout'])->name('logout');
+Route::get('/token-verification', [ManualAuthController::class, 'tokenVerification'])->name('verification.token');
 
 /*
 |--------------------------------------------------------------------------
