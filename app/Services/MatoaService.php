@@ -51,6 +51,7 @@ class MatoaService
             $password = UserMatoa::where('id', $user['id'])->pluck('password')->first();
             return $this->checkAccount($user, $regions, $password, $serpo, true);
         } catch (\Throwable $th) {
+            Log::info('matoa-error', ['res' => $th->getTrace(), 'token' => $token]);
             return null;
         }
     }
